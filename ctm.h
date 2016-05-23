@@ -6,6 +6,7 @@ Copyright (c) 2016 Christopher Thompson
 #define CTM_H_
 
 #include <climits>
+#include <cmath>
 #include <iostream>
 
 namespace ct {
@@ -196,12 +197,12 @@ namespace ct {
 		// Virtual Matrix Operations
 // 		virtual CTM<T> operator*(const CTM<T> & c) const;
 		// Friend Matrix Operations Element-wise
-// 		friend CTM<T> operator+(const T & n, const CTM<T> & c0);
-// 		friend CTM<T> operator-(const T & n, const CTM<T> & c0);
-// 		friend CTM<T> operator*(const T & n, const CTM<T> & c0);
-// 		friend CTM<T> operator/(const T & n, const CTM<T> & c0);
+		friend CTM<T> operator+(const T & n, const CTM<T> & c0);
+		friend CTM<T> operator-(const T & n, const CTM<T> & c0);
+		friend CTM<T> operator*(const T & n, const CTM<T> & c0);
+		friend CTM<T> operator/(const T & n, const CTM<T> & c0);
 		// Comparison
-// 		bool operator==(const CTM<T> & c);
+		bool operator==(const CTM<T> & c);
 		// Printing
 		void show() const;
 	};
@@ -215,7 +216,7 @@ namespace ct {
 // Private Member Functions
 
 template <class T>
-uns CTM<T>::point(const uns & i, const uns & j) const {
+inline uns CTM<T>::point(const uns & i, const uns & j) const {
 	if(i >= mRows || j >= mCols) {
 		std::cout << "[-] Error: Out of bounds access. Returning last mEl object" << std::endl;
 		return mRows * mCols - 1;
@@ -224,9 +225,9 @@ uns CTM<T>::point(const uns & i, const uns & j) const {
 }
 
 template <class T>
-typename CTM<T>::element CTM<T>::copy(const element el) const {
+inline typename CTM<T>::element CTM<T>::copy(const element el) const {
 	element o = new T[mRows * mCols];
-	for(uns i = 0; i < mRows * mCols; i++) {
+	for(typename CTM<T>::ellen i = 0; i < mRows * mCols; i++) {
 		o[i] = el[i];
 	}
 	return o;
@@ -242,7 +243,7 @@ typename CTM<T>::pvec CTM<T>::copy(const pvec vecs) const {
 }
 
 template <class T>
-typename CTM<T>::pvec CTM<T>::makeVectors() const {
+inline typename CTM<T>::pvec CTM<T>::makeVectors() const {
 	uns i = 0;
 	pvec o = new element[mCols];
 	for(; i < mCols; i++) {
@@ -386,6 +387,61 @@ CTM<T> CTM<T>::operator-(const CTM<T> & c) const {
 	}
 	std::cout << "[-] Error: Subtraction, 2 matrices must have same dimensions. Returning base constructed matrix." << std::endl;
 	return CTM<T>::CTM();
+}
+
+// Friend Matrix Operations Element-wise
+
+template <class T>
+CTM<T> operator+(const T & n, const CTM<T> & c) {
+	typename CTM<T>::element o = new T[c.mRows * c.mCols];
+	for(typename CTM<T>::ellen i = 0; i < c.mRows * c.mCols; i++) {
+		o[i] = c.mEl[i] + n;
+	}
+	return CTM<T>::CTM(o, o + c.mRows * c.mCols, c.mRows, c.mCols);
+}
+
+template <class T>
+CTM<T> operator-(const T & n, const CTM<T> & c) {
+	typename CTM<T>::element o = new T[c.mRows * c.mCols];
+	for(typename CTM<T>::ellen i = 0; i < c.mRows * c.mCols; i++) {
+		if(std::isinf(o[i] = n - c.mEl[i])) {
+			std::cout << "Divide by zero at [" << c.mRows << " " << c.mCols << "]. Setting element to zero." << std::endl;
+			o[i] = 0;
+		}
+	}
+	return CTM<T>::CTM(o, o + c.mRows * c.mCols, c.mRows, c.mCols);
+}
+
+template <class T>
+CTM<T> operator*(const T & n, const CTM<T> & c) {
+	typename CTM<T>::element o = new T[c.mRows * c.mCols];
+	for(typename CTM<T>::ellen i = 0; i < c.mRows * c.mCols; i++) {
+		o[i] = c.mEl[i] * n;
+	}
+	return CTM<T>::CTM(o, o + c.mRows * c.mCols, c.mRows, c.mCols);
+}
+
+template <class T>
+CTM<T> operator/(const T & n, const CTM<T> & c) {
+	typename CTM<T>::element o = new T[c.mRows * c.mCols];
+	for(typename CTM<T>::ellen i = 0; i < c.mRows * c.mCols; i++) {
+		o[i] = n / c.mEl[i];
+	}
+	return CTM<T>::CTM(o, o + c.mRows * c.mCols, c.mRows, c.mCols);
+}
+
+// Comparison
+
+template <class T>
+bool CTM<T>::operator==(const CTM<T> & c) {
+	if(mRows != c.mRows || mCols != c.mCols)
+		return false;
+	
+	for(ellen i = 0; i < mRows * mCols; i++) {
+		if(mEl[i] != c.mEl[i])
+			return false;
+	}
+	return true;
 }
 
 // Printing
