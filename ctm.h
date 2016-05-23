@@ -1,3 +1,7 @@
+/*
+CT Matrix
+Copyright (c) 2016 Christopher Thompson
+*/
 #ifndef CTM_H_
 #define CTM_H_
 
@@ -5,92 +9,399 @@
 #include <iostream>
 
 namespace ct {
+	typedef unsigned uns;
+	typedef unsigned long luns;
+	enum DStatus {ROW, COL};
+}
+
+/*
+VIEW CLASS DECLARATION
+*/
+namespace ct {
+	template <class T>
+	class View {
+	public:
+		typedef T* pvc;
+	private:
+		// Members
+		pvc mBegin;
+		uns mRows;
+		uns mCols;
+		DStatus mStatus;
+	public:
+		// Constructors
+		View();
+		View(const View & v);
+		View(const pvc & begin, const pvc & end, const uns & rows, const uns & cols, const DStatus & stat=COL);
+		// Destructor
+		virtual ~View() {}
+		// Assignment
+		View & operator=(const View & v);
+		// Property Access
+		const pvc begin() const {return mBegin;}
+		const pvc end() const;
+		const uns & rows() const {return mRows;}
+		const uns & cols() const {return mCols;}
+		const DStatus & status() const {return mStatus;}
+		// Comparison
+		bool operator==(const View & v) const;
+	};
+} // END VIEW DECLARATION
+
+/*
+VIEW CLASS DEFINITION
+*/
+namespace ct {
+
+// Constructors
+
+template <class T>
+View<T>::View() : mBegin(0) {
+	mRows = 0;
+	mCols = 0;
+	mStatus = COL;
+}
+
+template <class T>
+View<T>::View(const View<T> & v) : mBegin(v.mBegin){
+	mRows = v.mRows;
+	mCols = v.mCols;
+	mStatus = v.mStatus;
+}
+
+template <class T>
+View<T>::View(const pvc & begin, const pvc & end, const uns & rows,const uns & cols, const DStatus & stat) {
+	mBegin = begin;
+	
+	uns count = 0;
+	bool ok = true;
+	pvc it = mBegin;
+	for(;it != end; it++) {
+		count++;
+	}
+	
+	if(stat==COL && count!=cols) {
+		std::cout << "[-] Error: length between 'begin' and 'end' must be 'cols'. Should be " << count << std::endl;
+		ok = false;
+	}
+	else if(stat==ROW && count!=rows) {
+		std::cout << "[-] Error: length between 'begin' and 'end' must be 'rows'. Should be " << count << std::endl;
+		ok = false;
+	}
+	
+	if(!ok) {
+		std::cout << "Initializing mBegin for object at " << this << " to 'NULL'." << std::endl;
+		mBegin = 0;
+		mRows = 0;
+		mCols = 0;
+		mStatus = COL;
+		return;
+	}
+	
+	mRows = rows;
+	mCols = cols;
+	mStatus = stat;
+}
+
+// Assignment
+
+template <class T>
+View<T> & View<T>::operator=(const View<T> & v) {
+	if(this == v)
+		return *this;
+	mBegin = v.mBegin;
+	mRows = v.mRows;
+	mCols = v.mCols;
+	mStatus = v.mStatus;
+	
+	return *this;
+}
+
+// Property Access
+
+template <class T>
+const typename View<T>::pvc View<T>::end() const {
+	if(mStatus == COL)
+		return mBegin + mCols;
+	return mBegin + mRows;
+}
+
+// Comparison
+
+template <class T>
+bool View<T>::operator==(const View & v) const {
+	if(mBegin==v.mBegin && mRows==v.mRows && mCols==v.mCols && mStatus==v.mStatus)
+		return true;
+	return false;
+}
+
+} // END VIEW DEFINITION
+
+/*
+CTM TEMPLATE CLASS DECLARATION
+*/
+namespace ct {	
 	template <class T>
 	class CTM {
 	public:
-		typedef unsigned uns;
 		typedef unsigned long ellen; // element length type
-		// Non-const Iterator Typedefs
-		typedef T* start_iterator;
-		typedef T* end_iterator;
-		typedef T* start_col_iterator;
-		typedef T* end_col_iterator;
-		typedef T* start_row_iterator;
-		typedef T* end_row_iterator;
-		// Const Iterator Typedefs
-		typedef const T* const_start_iterator;
-		typedef const T* const_end_iterator;
-		typedef const T* const_start_col_iterator;
-		typedef const T* const_end_col_iterator;
-		typedef const T* const_start_row_iterator;
-		typedef const T* const_end_row_iterator;
+		typedef T* element;
+		typedef element* pvec;
+		typedef T* iterator;
+		typedef const T* const_iterator; // === const iterator
 	private:
-		T* el;
-		unsigned nrow;
-		unsigned ncol;
+		// Members
+		element mEl;
+		pvec mVectors;
+		uns mRows;
+		uns mCols;
+		// Private Member Functions
+		uns point(const uns & i, const uns & j) const;
+		element copy(const element el) const;
+		pvec copy(const pvec vecs) const; // Copies addresses of elements
+		pvec makeVectors() const;
 	public:
-		// Constructor
-		CTM<T>(T repnum=0, uns rows=1, uns cols=1);
-		CTM<T>(const_start_iterator s, const_end_iterator e, uns rows, uns cols);
-		CTM<T>(const_start_row_iterator sr, const_end_row_iterator er, const_start_col_iterator sc, const_end_col_iterator ec);
+		// Constructors
+		CTM();
+		CTM(const CTM & c);
+		CTM(const_iterator & begin, const_iterator & end, const uns & rows, const uns & cols);
+// 		CTM(const View<element> & v);
 		// Destructor
-		virtual ~CTM<T>();
-		// Attributes
-		const uns & nrows();
-		const uns & ncols();
-		// Scalar
-		const bool isScalar() const;
-		const T scalar() const;
-		// Reshape
-		void reshape(uns new_nrows, uns new_ncols);
-		// Concatenation 0=rows, 1=cols
-		void concat(const CTM<T1> & c1, axis=0);
-		CTM<T> concat(const CTM<T1> & c1, axis=0) const;
+		virtual ~CTM();
+		// Assignment
+		CTM<T> & operator=(const CTM<T> & c);
 		// Iterators
-		start_iterator begin();
-		end_iterator end();
-		start_row_iterator row_begin(uns i);
-		end_row_iterator row_end(uns i);
-		start_col_iterator col_begin(uns j);
-		end_col_iterator col_end(uns j);
+		iterator begin() {return mEl;}
+		iterator end() {return mEl + mRows * mCols;}
 		// Const Iterators
-		const_start_iterator cbegin();
-		const_end_iterator cend();
-		const_start_row_iterator crow_begin(uns i);
-		const_end_row_iterator crow_end(uns i);
-		const_start_col_iterator ccol_begin(uns j);
-		const_end_col_iterator ccol_end(uns j);
-		// Const Element Access
-		virtual const T & at(const unsigned & i, const unsigned & j) const;
-		// Non-Const Element Access
-		virtual T & at(const uns & i, const uns & j, const T & n);
+		const_iterator cbegin() const {return mEl;}
+		const_iterator cend() const {return mEl + mRows * mCols;}
+		// Attributes
+		const uns & nrows() const {return mRows;}
+		const uns & ncols() const {return mCols;}
+		// Scalar
+		bool isScalar() const;
+		const T & scalar() const;
+		// Element Access
+		T & at(uns i, uns j) {return mEl[point(i,j)];}
+		const T & at(uns i, uns j) const {return mEl[point(i, j)];}
 		// Transpose
-		virtual start_row_iterator t() const;
-		virtual const_start_row_iterator ct() const; // const
-		// Subset Includes Endpoint
-		const CTM<T> subset(unsigned startrow, unsigned endrow, unsigned startcol, unsigned endcol);
+		View<element> t() const; // construct with mVectors
+		// Subset; Includes start and end point
+		CTM<T> subset(const uns & start_row, const uns & end_row, const uns & start_col, const uns & end_col) const;
+		View<element> subset(const uns & start_col, const uns & end_col) const; // BEWARE
 		// Matrix Operations
-		virtual const CTM<T> operator+(const CTM<T1> & c1) const;
-		virtual const CTM<T> operator-(const CTM<T1> & c1) const;
-		virtual const CTM<T> operator*(const CTM<T1> & c1) const;
-		// Transpose Matrix Operations
-		virtual const CTM<T> operator+(const_start_row_iterator csri) const;
-		virtual const CTM<T> operator-(const_start_row_iterator csri) const;
-		virtual const CTM<T> operator*(const_start_row_iterator csri) const;
+		CTM<T> operator+(const CTM<T> & c) const;
+		CTM<T> operator-(const CTM<T> & c) const;
+		// Virtual Matrix Operations
+// 		virtual CTM<T> operator*(const CTM<T> & c) const;
 		// Friend Matrix Operations Element-wise
-		const CTM<T> operator+(T1, const CTM<T> & c0);
-		const CTM<T> operator-(T1, const CTM<T> & c0);
-		const CTM<T> operator*(T1, const CTM<T> & c0);
-		const CTM<T> operator/(T1, const CTM<T> & c0);
-		// Type Conversions
-		const CTM<double> dConv() const;
-		const CTM<int> intConv() const;
-		const CTM<long> lConv() const;
-		const CTM<long long> llConv() const;
-		// Friends
-		friend const CTM<T> transpose(const CTM<T> & c0);
-		friend ostream & operator<<(ostream & os);
+// 		friend CTM<T> operator+(const T & n, const CTM<T> & c0);
+// 		friend CTM<T> operator-(const T & n, const CTM<T> & c0);
+// 		friend CTM<T> operator*(const T & n, const CTM<T> & c0);
+// 		friend CTM<T> operator/(const T & n, const CTM<T> & c0);
+		// Comparison
+// 		bool operator==(const CTM<T> & c);
+		// Printing
+		void show() const;
 	};
-};
+}
+
+/*
+CTM TEMPLATE CLASS DEFINITION
+*/
+namespace ct {
+
+// Private Member Functions
+
+template <class T>
+uns CTM<T>::point(const uns & i, const uns & j) const {
+	if(i >= mRows || j >= mCols) {
+		std::cout << "[-] Error: Out of bounds access. Returning last mEl object" << std::endl;
+		return mRows * mCols - 1;
+	}
+	return j * mRows + i;
+}
+
+template <class T>
+typename CTM<T>::element CTM<T>::copy(const element el) const {
+	element o = new T[mRows * mCols];
+	for(uns i = 0; i < mRows * mCols; i++) {
+		o[i] = el[i];
+	}
+	return o;
+}
+
+template <class T>
+typename CTM<T>::pvec CTM<T>::copy(const pvec vecs) const {
+	pvec o = new element[mCols];
+	for(uns i = 0; i < mCols; i++) {
+		o[i] = vecs[i];
+	}
+	return o;
+}
+
+template <class T>
+typename CTM<T>::pvec CTM<T>::makeVectors() const {
+	uns i = 0;
+	pvec o = new element[mCols];
+	for(; i < mCols; i++) {
+		o[i] = mEl + i * mRows; // &mEl[i * mRows]
+	}
+	return o;	
+}
+
+// Constructors
+
+template <class T>
+CTM<T>::CTM() {
+	mEl = 0;
+	mVectors = 0;
+	mRows = 0;
+	mCols = 0;
+}
+
+template <class T>
+CTM<T>::CTM(const CTM & c) {
+	mEl = copy(c.mEl);
+	mRows = c.mRows;
+	mCols = c.mCols;
+	
+	mVectors = makeVectors();
+}
+
+template <class T>
+CTM<T>::CTM(const_iterator & begin, const_iterator & end, const uns & rows, const uns & cols) {
+	uns i = 0;
+	mRows = rows;
+	mCols = cols;
+	
+	mEl = new T[mRows * mCols];
+	for(const_iterator it = begin; it != end; it++, i++) {
+		mEl[i] = *it;
+	}
+	
+	mVectors = makeVectors();
+}
+
+// Destructor
+
+template <class T>
+CTM<T>::~CTM() {
+	delete [] mVectors;
+	delete [] mEl;
+}
+
+// Assignment
+
+template <class T>
+CTM<T> & CTM<T>::operator=(const CTM<T> & c) {
+	if(this == &c)
+		return *this;
+	
+	delete [] mVectors;
+	delete [] mEl;
+	
+	mEl = copy(c.mEl);
+	mRows = c.mRows;
+	mCols = c.mCols;
+	mVectors = makeVectors();
+	
+	return *this;
+}
+
+// Scalar
+
+template <class T>
+bool CTM<T>::isScalar() const {
+	if(mRows == 1 && mCols == 1)
+		return true;
+	return false;
+}
+
+template <class T>
+const T & CTM<T>::scalar() const {
+	if(isScalar())
+		return mEl[0];
+}
+
+// Transpose
+
+template <class T>
+View<typename CTM<T>::element> CTM<T>::t() const {
+	return View<element>::View(mVectors, mVectors + mCols, mCols, mRows, ROW);
+}
+
+// Subset; Includes start and end point
+
+template <class T>
+CTM<T> CTM<T>::subset(const uns & start_row, const uns & end_row, const uns & start_col, const uns & end_col) const {
+	uns new_rows = end_row - start_row + 1;
+	uns new_cols = end_col - start_col + 1;
+	
+	element o = new T[new_rows * new_cols];
+	
+	for(uns j = start_col; j <= end_col; j++) {
+		for(uns i = start_row; i <= end_row; i++) {
+			o[j * new_rows + 1] = point(i, j);
+		}
+	}
+	return CTM<T>::CTM(o, o + new_rows * new_cols, new_rows, new_cols);
+}
+
+template <class T>
+View<typename CTM<T>::element> CTM<T>::subset(const uns & start_col, const uns & end_col) const {
+	return View<T>::View(mVectors + start_col, mVectors + end_col + 1, mRows, end_col - start_col + 1);
+}
+
+// Matrix Operations
+
+template <class T>
+CTM<T> CTM<T>::operator+(const CTM<T> & c) const {
+	if(mRows == c.mRows && mCols == c.mCols) {
+		element add_ctm = new T[mRows * mCols];
+		uns i = 0;
+		const_iterator it = cbegin();
+		const_iterator c_it = c.cbegin();
+		for(; it != cend(); it++, c_it++, i++) {
+			add_ctm[i] = *it + *c_it;
+		}
+		return CTM<T>::CTM(add_ctm, add_ctm + mRows * mCols, mRows, mCols);
+	}
+	std::cout << "[-] Error: Addition, 2 matrices must have same dimensions. Returning base constructed matrix." << std::endl;
+	return CTM<T>::CTM();
+}
+
+template <class T>
+CTM<T> CTM<T>::operator-(const CTM<T> & c) const {
+	if(mRows == c.mRows && mCols == c.mCols) {
+		element sub_ctm = new T[mRows * mCols];
+		uns i = 0;
+		const_iterator it = cbegin();
+		const_iterator c_it = c.cbegin();
+		for(; it != cend(); it++, c_it++, i++) {
+			sub_ctm[i] = *it + *c_it;
+		}
+		return CTM<T>::CTM(sub_ctm, sub_ctm + mRows * mCols, mRows, mCols);
+	}
+	std::cout << "[-] Error: Subtraction, 2 matrices must have same dimensions. Returning base constructed matrix." << std::endl;
+	return CTM<T>::CTM();
+}
+
+// Printing
+
+template <class T>
+void CTM<T>::show() const {
+	for(uns i = 0; i < mRows; i++) {
+		std::cout << "\n";
+		for(uns j = 0; j < mCols-1; j++) {
+			std::cout << mEl[point(i, j)] << " ";
+		}
+		std::cout << mEl[point(i, mCols-1)];
+	}
+	std::cout << std::endl;
+}
+
+}
 
 #endif
